@@ -19,11 +19,15 @@ import {
   MailIcon,
   LockIcon,
   CheckIcon,
+  EyeIcon,
+  EyeOffIcon,
+  GoogleIcon,
 } from '../components/icons';
 import { colors, radii, shadow } from '../theme';
 import { s, f } from '../responsive';
 import { useApp } from '../store/AppContext';
 import { friendlyAuthError } from '../services/auth';
+import { useGoogleAuth } from '../services/googleAuth';
 
 export default function SignupScreen({ navigation, route }) {
   const role = route.params?.role === 'vendor' ? 'vendor' : 'customer';
@@ -33,9 +37,16 @@ export default function SignupScreen({ navigation, route }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // Google sign-in (works in a dev build; see services/googleAuth.js).
+  const { promptAsync, ready: googleReady } = useGoogleAuth({
+    onSuccess: () => navigation.replace('Tabs'),
+    onError: (e) => setError(friendlyAuthError(e?.code) || 'Google sign-in failed.'),
+  });
 
   const submit = async () => {
     if (busy) return;
@@ -55,11 +66,18 @@ export default function SignupScreen({ navigation, route }) {
     }
   };
 
-  const onGoogle = () => {
-    Alert.alert(
-      'Google sign-in',
-      'Google sign-in arrives with the dev build. Please use email & password for now.'
-    );
+  const onGoogle = async () => {
+    setError('');
+    try {
+      const result = await promptAsync();
+      // In Expo Go the redirect is rejected before a result returns; guide the user.
+      if (result?.type === 'dismiss' || result?.type === 'cancel') return;
+    } catch (e) {
+      Alert.alert(
+        'Google sign-in',
+        'Google sign-in needs a development build — it cannot run inside Expo Go. Use email & password here, or run a dev build.'
+      );
+    }
   };
 
   const TitleIcon = isVendor ? ChefHatIcon : ForkKnifeIcon;
@@ -122,7 +140,18 @@ export default function SignupScreen({ navigation, route }) {
               value={password}
               onChangeText={setPassword}
               placeholder="At least 8 characters"
-              secureTextEntry
+              secureTextEntry={!showPw}
+              autoCapitalize="none"
+              autoCorrect={false}
+              rightSlot={
+                <Pressable onPress={() => setShowPw((v) => !v)} hitSlop={10}>
+                  {showPw ? (
+                    <EyeOffIcon size={s(20)} color={colors.textMuted} />
+                  ) : (
+                    <EyeIcon size={s(20)} color={colors.textMuted} />
+                  )}
+                </Pressable>
+              }
             />
 
             {/* Agree */}
@@ -158,10 +187,14 @@ export default function SignupScreen({ navigation, route }) {
 
             {/* Google */}
             <Pressable
-              style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.googleBtn,
+                (pressed || !googleReady) && styles.pressed,
+              ]}
               onPress={onGoogle}
             >
-              <Text style={styles.googleText}>Continue with Google</Text>
+              <GoogleIcon size={s(20)} />
+              <Text style={styles.googleText}>Sign up with Google</Text>
             </Pressable>
 
             {/* Footer */}
@@ -183,7 +216,7 @@ export default function SignupScreen({ navigation, route }) {
   );
 }
 
-function Field({ label, icon: Icon, ...inputProps }) {
+function Field({ label, icon: Icon, rightSlot, ...inputProps }) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -194,6 +227,7 @@ function Field({ label, icon: Icon, ...inputProps }) {
           placeholderTextColor="rgba(31,18,53,0.4)"
           {...inputProps}
         />
+        {rightSlot}
       </View>
     </View>
   );
@@ -289,14 +323,16 @@ const styles = StyleSheet.create({
   or: { marginHorizontal: s(12), fontSize: f(12), fontWeight: '700', color: colors.textMuted },
 
   googleBtn: {
+    flexDirection: 'row',
     backgroundColor: colors.pink,
     borderRadius: radii.pill,
     paddingVertical: s(18),
     alignItems: 'center',
+    justifyContent: 'center',
     ...shadow.card,
     shadowOpacity: 0.12,
   },
-  googleText: { color: colors.text, fontSize: f(16.5), fontWeight: '700' },
+  googleText: { color: colors.text, fontSize: f(16.5), fontWeight: '700', marginLeft: s(10) },
 
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: s(22) },
   footerText: { fontSize: f(13.5), color: colors.textMuted },

@@ -424,3 +424,57 @@ export function DownloadIcon({ size = 18, color = '#000' }) {
     </Svg>
   );
 }
+
+export function EyeIcon({ size = 22, color = '#000' }) {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Path
+        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+export function EyeOffIcon({ size = 22, color = '#000' }) {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Path
+        d="M9.9 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7a16 16 0 0 1-3.1 3.9M6.5 6.6A16 16 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 4-.85"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="3" y1="3" x2="21" y2="21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Multi-color Google "G" mark (uses its own brand palette, ignores `color`).
+export function GoogleIcon({ size = 20 }) {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Path
+        d="M21.6 12.2c0-.7-.06-1.37-.18-2.02H12v3.82h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.89-1.74 2.99-4.3 2.99-7.32Z"
+        fill="#4285F4"
+      />
+      <Path
+        d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.23-2.5c-.9.6-2.05.95-3.38.95-2.6 0-4.8-1.76-5.59-4.12H3.08v2.59A10 10 0 0 0 12 22Z"
+        fill="#34A853"
+      />
+      <Path
+        d="M6.41 13.9a6 6 0 0 1 0-3.8V7.51H3.08a10 10 0 0 0 0 8.98l3.33-2.59Z"
+        fill="#FBBC05"
+      />
+      <Path
+        d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.86-2.86A10 10 0 0 0 12 2a10 10 0 0 0-8.92 5.51l3.33 2.59C7.2 7.74 9.4 5.98 12 5.98Z"
+        fill="#EA4335"
+      />
+    </Svg>
+  );
+}

@@ -18,9 +18,21 @@ const CARD_BG = '#E8E8ED';
 // "2450" -> "2,450" (Hermes' toLocaleString grouping isn't reliable).
 const groupNum = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+// "Ada Reyes" -> "AR"; falls back to a single letter or "?".
+const initialsOf = (name) => {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+};
+
 // Foodie Profile (Step 8) — matches walkthrough frames f_138–141 + ANALYSIS §8.
 export default function ProfileScreen({ navigation }) {
-  const { togglePersona, favorites } = useApp();
+  const { togglePersona, favorites, profile, user } = useApp();
+
+  // Real signed-in identity, falling back to the demo foodie when not signed in.
+  const realName = profile?.name || user?.displayName || FOODIE.name;
+  const photoURL = user?.photoURL || null;
+  const initials = realName === FOODIE.name ? FOODIE.initials : initialsOf(realName);
 
   const quest = FOODIE.weeklyQuest;
   const progress = Math.min(quest.found / quest.total, 1); // 3 / 5 found
@@ -40,9 +52,13 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={styles.identity}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{FOODIE.initials}</Text>
+            {photoURL ? (
+              <Image source={{ uri: photoURL }} style={styles.avatarImg} resizeMode="cover" />
+            ) : (
+              <Text style={styles.avatarText}>{initials}</Text>
+            )}
           </View>
-          <Text style={styles.name}>{FOODIE.name}</Text>
+          <Text style={styles.name}>{realName}</Text>
           <Text style={styles.level}>
             Level {FOODIE.level} {FOODIE.levelTitle} · {groupNum(FOODIE.xp)} XP
           </Text>
@@ -172,8 +188,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF9',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     ...shadow.card,
   },
+  avatarImg: { width: '100%', height: '100%', borderRadius: s(28) },
   avatarText: { fontSize: f(30), fontWeight: '800', color: colors.primary, letterSpacing: 1 },
   name: { marginTop: s(14), fontSize: f(24), fontWeight: '800', color: colors.text },
   level: { marginTop: s(5), fontSize: f(13.5), fontWeight: '500', color: colors.textMuted },
