@@ -4,6 +4,7 @@ import { FOODIE } from '../data/user';
 import { isFirebaseConfigured } from '../firebase';
 import { subscribeAuth, signUpWithEmail, signInWithEmail, signOutUser } from '../services/auth';
 import { saveUserProfile, getUserProfile } from '../services/users';
+import { signOutGoogle } from '../services/googleAuth';
 
 const STORAGE_KEY = '@hungerquest/state/v1';
 
@@ -141,6 +142,7 @@ export function AppProvider({ children }) {
         // ignore
       }
     }
+    await signOutGoogle();
     setUser(null);
     setProfile(null);
     setPersona('foodie');

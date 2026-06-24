@@ -8,7 +8,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.myairbridge"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,12 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.1021990484494-274nn0605jk7jjk29i1h4r8qsjjonekc"
+        }
+      ]
     ]
   }
 }

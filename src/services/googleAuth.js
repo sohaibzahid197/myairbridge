@@ -1,57 +1,76 @@
-// Google Sign-in (Firebase Auth via expo-auth-session).
+// Google Sign-in → Firebase Auth, via @react-native-google-signin/google-signin
+// (Expo's currently recommended Google library; the old expo-auth-session
+// Google provider is deprecated in SDK 54).
 //
-// WORKS IN: a development build (`expo prebuild` + `expo run:android`) or an
-// EAS dev build. It does NOT work in plain Expo Go — Expo retired its auth
-// proxy (auth.expo.io), so Expo Go hands Google an `exp://…` redirect that
-// Google rejects (redirect_uri_mismatch). A dev build registers the app's own
-// scheme (see app.json "scheme") as a valid redirect, so Google completes there.
+// REQUIRES A DEVELOPMENT BUILD — the native module is not in Expo Go.
 //
-// REMAINING MANUAL SETUP for the dev build:
-//   1. Google Cloud Console → Credentials → create an *Android* OAuth client
-//      (package name from app.json + your signing SHA-1) and paste its ID into
-//      GOOGLE_ANDROID_CLIENT_ID below.
-//   2. Firebase → Authentication → Sign-in method → enable Google.
-import { useEffect } from 'react';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+// MANUAL SETUP (one-time, in your own consoles):
+//   1. Firebase → Authentication → Sign-in method → enable **Google**.
+//   2. Firebase → Project settings → add an **Android app** with package
+//      `com.anonymous.myairbridge` and the build's **SHA-1**, then download
+//      `google-services.json` into the project root (app.json points to it).
+//   The webClientId below already belongs to this Firebase project
+//   (sender id 1021990484494), so the id_token it returns is valid for Firebase.
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth } from '../firebase';
 
-// Finishes the auth session if the app was opened via the redirect.
-WebBrowser.maybeCompleteAuthSession();
-
+// Web (server) OAuth client ID — required so signIn() returns an id_token that
+// Firebase accepts.
 export const GOOGLE_WEB_CLIENT_ID =
   '1021990484494-vikpu35oarl7npfvefvgi7ffc60qc4mn.apps.googleusercontent.com';
 
-// Fill this in after creating the Android OAuth client (step 1 above).
-export const GOOGLE_ANDROID_CLIENT_ID = '';
+// iOS OAuth client (CLIENT_ID from GoogleService-Info.plist). Ignored on Android.
+export const GOOGLE_IOS_CLIENT_ID =
+  '1021990484494-274nn0605jk7jjk29i1h4r8qsjjonekc.apps.googleusercontent.com';
 
-// Hook: returns { promptAsync, ready }. Call promptAsync() to start sign-in.
-// On success it signs the user into Firebase; the AppContext auth subscriber
-// then picks up the user and populates the profile automatically.
-export function useGoogleAuth({ onSuccess, onError } = {}) {
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_WEB_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID || undefined,
+let configured = false;
+function ensureConfigured() {
+  if (configured) return;
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    offlineAccess: false,
   });
+  configured = true;
+}
 
-  useEffect(() => {
-    if (!response) return;
-    if (response.type === 'success') {
-      const idToken = response.params?.id_token;
-      if (!idToken) {
-        onError?.(new Error('Google did not return an id_token.'));
-        return;
-      }
-      const credential = GoogleAuthProvider.credential(idToken);
-      signInWithCredential(auth, credential)
-        .then((res) => onSuccess?.(res.user))
-        .catch((e) => onError?.(e));
-    } else if (response.type === 'error') {
-      onError?.(response.error || new Error('Google sign-in failed.'));
+// Runs the native Google flow and signs the user into Firebase.
+// Returns the Firebase user on success, or null if the user cancelled.
+// The AppContext auth subscriber then picks up the user + populates the profile.
+export async function signInWithGoogle() {
+  ensureConfigured();
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const response = await GoogleSignin.signIn();
+    if (!isSuccessResponse(response)) return null; // cancelled / no credential
+    const idToken = response.data?.idToken;
+    if (!idToken) throw new Error('Google did not return an id_token.');
+    const credential = GoogleAuthProvider.credential(idToken);
+    const cred = await signInWithCredential(auth, credential);
+    return cred.user;
+  } catch (e) {
+    if (
+      isErrorWithCode(e) &&
+      (e.code === statusCodes.SIGN_IN_CANCELLED || e.code === statusCodes.IN_PROGRESS)
+    ) {
+      return null; // user backed out — treat as a no-op
     }
-    // response.type === 'dismiss' | 'cancel' → user backed out; ignore.
-  }, [response]);
+    throw e;
+  }
+}
 
-  return { promptAsync, ready: !!request };
+// Best-effort native Google sign-out (call alongside Firebase signOut).
+export async function signOutGoogle() {
+  try {
+    ensureConfigured();
+    await GoogleSignin.signOut();
+  } catch (e) {
+    // ignore
+  }
 }

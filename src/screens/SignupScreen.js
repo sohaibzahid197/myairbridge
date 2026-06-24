@@ -8,7 +8,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import Screen from '../components/Screen';
 import {
@@ -27,7 +26,7 @@ import { colors, radii, shadow } from '../theme';
 import { s, f } from '../responsive';
 import { useApp } from '../store/AppContext';
 import { friendlyAuthError } from '../services/auth';
-import { useGoogleAuth } from '../services/googleAuth';
+import { signInWithGoogle } from '../services/googleAuth';
 
 export default function SignupScreen({ navigation, route }) {
   const role = route.params?.role === 'vendor' ? 'vendor' : 'customer';
@@ -41,12 +40,6 @@ export default function SignupScreen({ navigation, route }) {
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  // Google sign-in (works in a dev build; see services/googleAuth.js).
-  const { promptAsync, ready: googleReady } = useGoogleAuth({
-    onSuccess: () => navigation.replace('Tabs'),
-    onError: (e) => setError(friendlyAuthError(e?.code) || 'Google sign-in failed.'),
-  });
 
   const submit = async () => {
     if (busy) return;
@@ -67,16 +60,16 @@ export default function SignupScreen({ navigation, route }) {
   };
 
   const onGoogle = async () => {
+    if (busy) return;
     setError('');
+    setBusy(true);
     try {
-      const result = await promptAsync();
-      // In Expo Go the redirect is rejected before a result returns; guide the user.
-      if (result?.type === 'dismiss' || result?.type === 'cancel') return;
+      const user = await signInWithGoogle();
+      if (user) navigation.replace('Tabs');
     } catch (e) {
-      Alert.alert(
-        'Google sign-in',
-        'Google sign-in needs a development build — it cannot run inside Expo Go. Use email & password here, or run a dev build.'
-      );
+      setError(e?.message ? `Google sign-in failed: ${e.message}` : 'Google sign-in failed.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -187,11 +180,9 @@ export default function SignupScreen({ navigation, route }) {
 
             {/* Google */}
             <Pressable
-              style={({ pressed }) => [
-                styles.googleBtn,
-                (pressed || !googleReady) && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.googleBtn, (pressed || busy) && styles.pressed]}
               onPress={onGoogle}
+              disabled={busy}
             >
               <GoogleIcon size={s(20)} />
               <Text style={styles.googleText}>Sign up with Google</Text>
